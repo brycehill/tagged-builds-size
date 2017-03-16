@@ -1,0 +1,14 @@
+{
+  "name": "tag-builds",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "bin": {
+    "tag-builds": "./bin/tag-builds.js"
+  },
+  "dependencies": {
+    "async": "^2.1.5",
+    "simple-git": "^1.67.0",
+    "webpack": "^2.2.1"
+  }
+}
