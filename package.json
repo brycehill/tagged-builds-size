@@ -10,5 +10,8 @@
     "async": "^2.1.5",
     "simple-git": "^1.67.0",
     "webpack": "^2.2.1"
+  },
+  "devDependencies": {
+    "prettier": "^1.6.1"
   }
 }
