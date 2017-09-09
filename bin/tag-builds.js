@@ -18,7 +18,7 @@ const CWD = process.cwd()
 // TODO: Get one tag by week or something?
 git.tags((err, { all }) => {
   if (err) return console.error(err)
-  const tags = all.reverse().slice(0, 3)
+  const tags = all.reverse().slice(0, 25)
   console.log(`Found ${chalk.cyan(all.length)} tags: ${tags.join(', ')}`)
   each(
     tags,
@@ -97,6 +97,7 @@ git.tags((err, { all }) => {
     () => {
       console.log(chalk.green('All Done!'))
       console.log(JSON.stringify(data, null, 2))
+      fs.writeFileSync('sizes.json', JSON.stringify(data, null, 2))
     }
   )
 })
