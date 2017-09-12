@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const chalk = require('chalk')
-const each = require('async/eachSeries')
+const eachOf = require('async/eachOfSeries')
 const exec = require('child_process').exec
 const fs = require('fs')
 const git = require('simple-git')()
@@ -13,21 +13,20 @@ const rimraf = require('rimraf')
 const util = require('util')
 const webpack = require('webpack')
 
-const data = {}
+const data = []
 const CWD = process.cwd()
 
-// TODO: Get one tag by week or something?
 git.tags(
   { '--format': '%(taggerdate)|%(refname:short)', '--sort': '-taggerdate' },
   (err, { all }) => {
     if (err) return console.error(err)
-    const tags = all.slice(0, 10)
+    const tags = all.slice(0, 100)
     console.log(`Found ${chalk.cyan(all.length)} tags`)
-    each(
+    eachOf(
       tags,
-      (t, cb) => {
+      (t, i, cb) => {
         const [date, tag] = t.split('|')
-        console.log(chalk.yellow('Tag:', tag))
+        console.log(chalk.yellow('Tag:', tag), `(${i + 1} of ${tags.length})`)
         git.checkout(tag, (err, x) => {
           if (err) return console.error(chalk.red(err))
           data[tag] = data[tag] || { date, bundles: [] }
@@ -47,38 +46,34 @@ git.tags(
                 // TODO: Create module that builds webpack and spits out the entry point
                 // bundle gzipped sizes. For use in a GH bot???
                 exec(
-                  `./node_modules/.bin/webpack --config ${configPath} -j --display-entrypoints --env.app=publisher`,
+                  `./node_modules/.bin/webpack --config ${configPath} -j --env.app=publisher`,
                   { cwd: CWD, maxBuffer: Infinity },
                   (err, stdout, stderr) => {
                     if (err) return console.error(err)
-                    const json = JSON.parse(stdout)
+                    const stats = JSON.parse(stdout)
                     console.log(chalk.green('Bundle built'))
-                    json.assets.forEach(asset => {
-                      Object.keys(json.entrypoints).forEach(name => {
-                        const ep = json.entrypoints[name]
+                    stats.chunks
+                      .filter(chunk => !!chunk.initial)
+                      .forEach(chunk => {
                         const re = /\.(js|css)$/
-
-                        if (
-                          ep.assets.includes(asset.name) &&
-                          re.test(asset.name)
-                        ) {
+                        const files = chunk.files.filter(f => re.test(f))
+                        files.forEach(file => {
                           const p = path.join(
                             CWD,
                             // Get public??? or build into specific folder?
                             'public',
-                            json.publicPath,
-                            asset.name
+                            stats.publicPath,
+                            file
                           )
-                          const file = fs.readFileSync(p, 'utf8')
-                          const size = prettyBytes(gzipSize.sync(file))
-                          console.log(`${asset.name} - ${size}`)
+                          const f = fs.readFileSync(p, 'utf8')
+                          const size = prettyBytes(gzipSize.sync(f))
+                          console.log(`${file} - ${size}`)
                           data[tag].bundles.push({
-                            name: asset.name,
+                            name: file,
                             size
                           })
-                        }
+                        })
                       })
-                    })
                     cb()
                   }
                 )
@@ -88,9 +83,15 @@ git.tags(
         })
       },
       () => {
-        console.log(chalk.green('All Done!'))
-        console.log(JSON.stringify(data, null, 2))
-        fs.writeFileSync('sizes.json', JSON.stringify(data, null, 2))
+        const asList = Object.keys(data).reduce((arr, tag) => {
+          return [
+            ...arr,
+            { tag, bundles: data[tag].bundles, date: data[tag].date }
+          ]
+        }, [])
+        const stringified = JSON.stringify(asList, null, 2)
+        console.log(chalk.green(stringified))
+        fs.writeFileSync('sizes.json', stringified)
       }
     )
   }
