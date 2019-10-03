@@ -18,6 +18,9 @@
   "devDependencies": {
     "prettier": "^1.18.2"
   },
+  "scripts": {
+   "prettier": "prettier \"*.js\""
+  },
   "prettier": {
     "endOfLine": "lf",
     "semi": false,
